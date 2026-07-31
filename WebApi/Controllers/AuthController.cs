@@ -14,10 +14,17 @@ namespace WebApi.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
+        private readonly IGoogleAuthService _googleAuthService;
+        private readonly IAppleAuthService _appleAuthService;
 
-        public AuthController(IAuthService authService)
+        public AuthController(
+            IAuthService authService,
+            IGoogleAuthService googleAuthService,
+            IAppleAuthService appleAuthService)
         {
             _authService = authService;
+            _googleAuthService = googleAuthService;
+            _appleAuthService = appleAuthService;
         }
 
         /// <summary>Yeni kullanıcı kaydı oluşturur.</summary>
@@ -68,6 +75,68 @@ namespace WebApi.Controllers
             var tokenResult = await _authService.CreateAccessAndRefreshTokenAsync(loginResult.Data, ipAddress);
 
             // Refresh token'ı Cookie olarak ayarla (güvenlik optimizasyonu)
+            SetRefreshTokenCookie(tokenResult.RefreshToken, tokenResult.RefreshTokenExpiration);
+
+            return Ok(new
+            {
+                success = true,
+                message = loginResult.Message,
+                data = tokenResult.AccessToken
+            });
+        }
+
+        /// <summary>Google OAuth ile giriş yapar veya otomatik kayıt oluşturur.</summary>
+        [HttpPost("google-login")]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleAuthDto googleAuthDto)
+        {
+            var verifyResult = await _googleAuthService.VerifyAndGetGoogleUserInfoAsync(googleAuthDto.IdToken);
+            if (!verifyResult.Success)
+            {
+                return BadRequest(verifyResult);
+            }
+
+            var loginResult = await _googleAuthService.GoogleLoginOrRegisterAsync(
+                verifyResult.Data, 
+                googleAuthDto.FirstName, 
+                googleAuthDto.LastName);
+
+            if (!loginResult.Success)
+            {
+                return BadRequest(loginResult);
+            }
+
+            var ipAddress = GetIpAddress();
+            var tokenResult = await _authService.CreateAccessAndRefreshTokenAsync(loginResult.Data, ipAddress);
+
+            SetRefreshTokenCookie(tokenResult.RefreshToken, tokenResult.RefreshTokenExpiration);
+
+            return Ok(new
+            {
+                success = true,
+                message = loginResult.Message,
+                data = tokenResult.AccessToken
+            });
+        }
+
+        /// <summary>Apple Sign-In ile giriş yapar veya otomatik kayıt oluşturur.</summary>
+        [HttpPost("apple-login")]
+        public async Task<IActionResult> AppleLogin([FromBody] AppleAuthDto appleAuthDto)
+        {
+            var verifyResult = await _appleAuthService.VerifyAndGetAppleUserInfoAsync(appleAuthDto);
+            if (!verifyResult.Success)
+            {
+                return BadRequest(verifyResult);
+            }
+
+            var loginResult = await _appleAuthService.AppleLoginOrRegisterAsync(verifyResult.Data);
+            if (!loginResult.Success)
+            {
+                return BadRequest(loginResult);
+            }
+
+            var ipAddress = GetIpAddress();
+            var tokenResult = await _authService.CreateAccessAndRefreshTokenAsync(loginResult.Data, ipAddress);
+
             SetRefreshTokenCookie(tokenResult.RefreshToken, tokenResult.RefreshTokenExpiration);
 
             return Ok(new

@@ -29,6 +29,18 @@ namespace Business.Concrete
         }
 
         /// <inheritdoc/>
+        public async Task<User?> GetByGoogleId(string googleId)
+        {
+            return await _userDal.GetAsync(u => u.GoogleId == googleId);
+        }
+
+        /// <inheritdoc/>
+        public async Task<User?> GetByAppleId(string appleId)
+        {
+            return await _userDal.GetAsync(u => u.AppleId == appleId);
+        }
+
+        /// <inheritdoc/>
         public async Task Add(User user)
         {
             await _userDal.AddAsync(user);

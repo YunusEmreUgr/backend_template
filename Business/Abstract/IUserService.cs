@@ -10,6 +10,8 @@ namespace Business.Abstract
     {
         Task<User?> GetByMail(string email);
         Task<User?> GetById(int userId);
+        Task<User?> GetByGoogleId(string googleId);
+        Task<User?> GetByAppleId(string appleId);
         Task Add(User user);
         Task Update(User user);
         List<OperationClaim> GetClaims(User user);

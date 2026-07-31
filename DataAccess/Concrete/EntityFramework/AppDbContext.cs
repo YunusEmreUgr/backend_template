@@ -41,6 +41,8 @@ namespace DataAccess.Concrete.EntityFramework
             // 3. İndeks Tanımlamaları (Performans için)
             modelBuilder.Entity<Product>().HasIndex(p => p.CreatedAt);
             modelBuilder.Entity<Product>().HasIndex(p => p.CategoryId);
+            modelBuilder.Entity<User>().HasIndex(u => u.GoogleId);
+            modelBuilder.Entity<User>().HasIndex(u => u.AppleId);
 
             // 4. Veri Tipi Hassasiyetleri (Decimal Precision)
             modelBuilder.Entity<Product>()

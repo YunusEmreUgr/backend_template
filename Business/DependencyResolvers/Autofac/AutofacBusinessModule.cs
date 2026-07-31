@@ -34,6 +34,8 @@ namespace Business.DependencyResolvers.Autofac
 
             // ─── Güvenlik ve Yardımcı Kayıtlar ──────────────────────────────────
             builder.RegisterType<JwtHelper>().As<ITokenHelper>().SingleInstance();
+            builder.RegisterType<GoogleAuthService>().As<IGoogleAuthService>().InstancePerLifetimeScope();
+            builder.RegisterType<AppleAuthService>().As<IAppleAuthService>().InstancePerLifetimeScope();
 
             // ─── Servis (Manager) Kayıtları ve AOP Proxying ──────────────────────
             // Aşağıdaki kod "Manager" ile biten tüm somut sınıfları otomatik bulur, 
