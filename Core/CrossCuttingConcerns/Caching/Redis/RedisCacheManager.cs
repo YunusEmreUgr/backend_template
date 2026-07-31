@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Distributed;
+using StackExchange.Redis;
 
 namespace Core.CrossCuttingConcerns.Caching.Redis
 {
@@ -13,10 +14,12 @@ namespace Core.CrossCuttingConcerns.Caching.Redis
     public class RedisCacheManager : ICacheManager
     {
         private readonly IDistributedCache _cache;
+        private readonly IConnectionMultiplexer? _connectionMultiplexer;
 
-        public RedisCacheManager(IDistributedCache cache)
+        public RedisCacheManager(IDistributedCache cache, IConnectionMultiplexer? connectionMultiplexer = null)
         {
             _cache = cache;
+            _connectionMultiplexer = connectionMultiplexer;
         }
 
         public T Get<T>(string key)
@@ -62,10 +65,23 @@ namespace Core.CrossCuttingConcerns.Caching.Redis
 
         public void RemoveByPattern(string pattern)
         {
-            // IDistributedCache varsayılan olarak pattern bazlı silmeyi desteklemez (Redis KEYS komutu performans sorunları yarattığı için).
-            // Gelişmiş Redis implementasyonlarında IServer üzerinden KEYS komutu veya SCAN kullanılarak yapılabilir.
-            // Bu template için şimdilik sadece key bazlı silme açıktır.
-            throw new NotImplementedException("RemoveByPattern Redis tarafında özel IServer implementasyonu gerektirir.");
+            if (_connectionMultiplexer == null)
+            {
+                throw new InvalidOperationException("Redis key pattern temizleme işlemi için IConnectionMultiplexer servisinin DI container'a kaydedilmiş olması gerekir.");
+            }
+
+            var endpoints = _connectionMultiplexer.GetEndPoints();
+            var db = _connectionMultiplexer.GetDatabase();
+            foreach (var endpoint in endpoints)
+            {
+                var server = _connectionMultiplexer.GetServer(endpoint);
+                var redisPattern = $"*{pattern}*";
+                var keys = server.Keys(pattern: redisPattern).ToArray();
+                foreach (var key in keys)
+                {
+                    db.KeyDelete(key);
+                }
+            }
         }
 
         public async Task<T> GetAsync<T>(string key)
@@ -109,9 +125,24 @@ namespace Core.CrossCuttingConcerns.Caching.Redis
             await _cache.RemoveAsync(key);
         }
 
-        public Task RemoveByPatternAsync(string pattern)
+        public async Task RemoveByPatternAsync(string pattern)
         {
-            throw new NotImplementedException("RemoveByPattern Redis tarafında özel IServer implementasyonu gerektirir.");
+            if (_connectionMultiplexer == null)
+            {
+                throw new InvalidOperationException("Redis key pattern temizleme işlemi için IConnectionMultiplexer servisinin DI container'a kaydedilmiş olması gerekir.");
+            }
+
+            var endpoints = _connectionMultiplexer.GetEndPoints();
+            var db = _connectionMultiplexer.GetDatabase();
+            foreach (var endpoint in endpoints)
+            {
+                var server = _connectionMultiplexer.GetServer(endpoint);
+                var redisPattern = $"*{pattern}*";
+                await foreach (var key in server.KeysAsync(pattern: redisPattern))
+                {
+                    await db.KeyDeleteAsync(key);
+                }
+            }
         }
 
         public async Task RemoveByPatternsAsync(IEnumerable<string> patterns)

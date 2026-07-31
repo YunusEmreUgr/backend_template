@@ -31,7 +31,7 @@ using System.Text.Json;
 
 public class Program
 {
-    private static void Main(string[] args)
+    private static async Task Main(string[] args)
     {
         var watch = Stopwatch.StartNew();
 
@@ -85,8 +85,10 @@ public class Program
             services.AddScoped<IEmailService, SmtpEmailService>();
             services.AddSingleton<ILoggerService, SerilogLoggerService>();
 
-            // Redis Dağıtık Önbellekleme (İsteğe bağlı - Aktif etmek için aşağıdaki satırı yorumdan çıkarın)
+            // Redis Dağıtık Önbellekleme (İsteğe bağlı - Aktif etmek için aşağıdaki satırları yorumdan çıkarın)
             // services.AddStackExchangeRedisCache(options => options.Configuration = configuration.GetConnectionString("Redis"));
+            // services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp => 
+            //     StackExchange.Redis.ConnectionMultiplexer.Connect(configuration.GetConnectionString("Redis") ?? "localhost:6379"));
 
             // 7. Controller ve JSON Serileştirme Ayarları
             services.AddControllers(options =>
@@ -268,6 +270,21 @@ public class Program
             app.UseAuthorization();
 
             app.MapControllers();
+
+            // Veritabanı otomatik migration ve seeding işlemleri
+            using (var scope = app.Services.CreateScope())
+            {
+                var servicesProvider = scope.ServiceProvider;
+                try
+                {
+                    var dbContext = servicesProvider.GetRequiredService<AppDbContext>();
+                    await DataAccess.Concrete.EntityFramework.Seed.DbSeeder.SeedAsync(dbContext);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Veritabanı migration veya seeding sırasında hata oluştu.");
+                }
+            }
 
             watch.Stop();
             Log.Information("🚀 Uygulama {ElapsedMilliseconds} ms içinde başarıyla başlatıldı.", watch.ElapsedMilliseconds);

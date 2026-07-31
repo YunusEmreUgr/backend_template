@@ -104,9 +104,9 @@ namespace Business.Concrete
         }
 
         /// <inheritdoc/>
-        public IDataResult<AccessToken> CreateAccessToken(User user)
+        public async Task<IDataResult<AccessToken>> CreateAccessTokenAsync(User user)
         {
-            var claims = _userService.GetClaims(user);
+            var claims = await _userService.GetClaimsAsync(user);
             var accessToken = _tokenHelper.CreateToken(user, claims);
             return new SuccessDataResult<AccessToken>(accessToken, Messages.AccessTokenCreated, StatusCodes.Status200OK);
         }
@@ -114,14 +114,14 @@ namespace Business.Concrete
         /// <inheritdoc/>
         public async Task<TokenDto> CreateAccessAndRefreshTokenAsync(User user, string ipAddress)
         {
-            var claims = _userService.GetClaims(user);
+            var claims = await _userService.GetClaimsAsync(user);
             return await _tokenHelper.CreateTokensAsync(user, claims, ipAddress);
         }
 
         /// <inheritdoc/>
-        public IDataResult<List<OperationClaim>> GetClaims(User user)
+        public async Task<IDataResult<List<OperationClaim>>> GetClaimsAsync(User user)
         {
-            var claims = _userService.GetClaims(user);
+            var claims = await _userService.GetClaimsAsync(user);
             return new SuccessDataResult<List<OperationClaim>>(claims, StatusCodes.Status200OK);
         }
     }

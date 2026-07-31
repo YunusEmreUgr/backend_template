@@ -1,4 +1,6 @@
 using Core.Entities.Concrete.Users;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Business.Abstract
 {
@@ -14,6 +16,6 @@ namespace Business.Abstract
         Task<User?> GetByAppleId(string appleId);
         Task Add(User user);
         Task Update(User user);
-        List<OperationClaim> GetClaims(User user);
+        Task<List<OperationClaim>> GetClaimsAsync(User user);
     }
 }

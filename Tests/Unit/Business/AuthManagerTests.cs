@@ -7,6 +7,8 @@ using Core.Utilities.Security.JWT;
 using Entities.Dtos.Auth;
 using FluentAssertions;
 using Moq;
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -95,6 +97,47 @@ namespace Tests.Unit.Business
 
             // Assert
             result.Success.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task CreateAccessTokenAsync_ShouldReturnAccessToken_WhenUserIsValid()
+        {
+            // Arrange
+            var user = new User { UserId = 1, Email = "test@example.com" };
+            var claims = new List<OperationClaim> { new OperationClaim { OperationClaimId = 1, OperationClaimName = "Admin" } };
+            var expectedToken = new AccessToken { Token = "mocked-jwt-token", Expiration = DateTime.UtcNow.AddMinutes(10) };
+
+            _userServiceMock.Setup(x => x.GetClaimsAsync(user)).ReturnsAsync(claims);
+            _tokenHelperMock.Setup(x => x.CreateToken(user, claims)).Returns(expectedToken);
+
+            // Act
+            var result = await _authManager.CreateAccessTokenAsync(user);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data.Token.Should().Be(expectedToken.Token);
+            _userServiceMock.Verify(x => x.GetClaimsAsync(user), Times.Once);
+            _tokenHelperMock.Verify(x => x.CreateToken(user, claims), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetClaimsAsync_ShouldReturnClaims_WhenUserIsValid()
+        {
+            // Arrange
+            var user = new User { UserId = 1, Email = "test@example.com" };
+            var claims = new List<OperationClaim> { new OperationClaim { OperationClaimId = 1, OperationClaimName = "Admin" } };
+
+            _userServiceMock.Setup(x => x.GetClaimsAsync(user)).ReturnsAsync(claims);
+
+            // Act
+            var result = await _authManager.GetClaimsAsync(user);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data.Should().ContainSingle(c => c.OperationClaimName == "Admin");
+            _userServiceMock.Verify(x => x.GetClaimsAsync(user), Times.Once);
         }
     }
 }

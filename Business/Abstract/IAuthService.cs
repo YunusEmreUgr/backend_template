@@ -22,12 +22,12 @@ namespace Business.Abstract
         Task<IResult> UserExists(string email);
 
         /// <summary>Kullanıcı için tek başına Access Token üretir.</summary>
-        IDataResult<AccessToken> CreateAccessToken(User user);
+        Task<IDataResult<AccessToken>> CreateAccessTokenAsync(User user);
 
         /// <summary>Kullanıcı için hem Access Token hem de Refresh Token üretir ve veritabanına kaydeder.</summary>
         Task<TokenDto> CreateAccessAndRefreshTokenAsync(User user, string ipAddress);
 
         /// <summary>Kullanıcının sahip olduğu rolleri döner.</summary>
-        IDataResult<List<OperationClaim>> GetClaims(User user);
+        Task<IDataResult<List<OperationClaim>>> GetClaimsAsync(User user);
     }
 }

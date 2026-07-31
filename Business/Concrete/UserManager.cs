@@ -53,9 +53,9 @@ namespace Business.Concrete
         }
 
         /// <inheritdoc/>
-        public List<OperationClaim> GetClaims(User user)
+        public async Task<List<OperationClaim>> GetClaimsAsync(User user)
         {
-            return _userDal.GetClaims(user);
+            return await _userDal.GetClaimsAsync(user);
         }
     }
 }

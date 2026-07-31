@@ -38,6 +38,7 @@ namespace Core.DependencyResolvers
             // Redis Dağıtık Önbelleğe Geçmek İçin:
             // 1. WebApi/Program.cs içerisinde Redis servislerini ekleyin:
             //    builder.Services.AddStackExchangeRedisCache(options => options.Configuration = builder.Configuration.GetConnectionString("Redis"));
+            //    builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp => StackExchange.Redis.ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379"));
             // 2. Yukarıdaki MemoryCacheManager satırını yorum satırı yapın ve aşağıdaki satırı açın:
             //    services.AddSingleton<ICacheManager, RedisCacheManager>();
 
