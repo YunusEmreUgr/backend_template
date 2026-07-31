@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
+using Core.Utilities.Results;
 
 namespace Core.DataAccess.EntityFramework
 {
@@ -156,6 +157,55 @@ namespace Core.DataAccess.EntityFramework
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
+        }
+
+        /// <inheritdoc/>
+        public async Task<PaginatedList<TEntity>> GetPaginatedAsync(
+            Expression<Func<TEntity, bool>>? filter = null,
+            int pageNumber = 1,
+            int pageSize = 10,
+            params Expression<Func<TEntity, object>>[] includes)
+        {
+            IQueryable<TEntity> query = Context.Set<TEntity>();
+
+            foreach (var include in includes)
+                query = query.Include(include);
+
+            if (filter != null)
+                query = query.Where(filter);
+
+            var count = await query.CountAsync();
+
+            var createdAtProperty = _createdAtPropertyCache.GetOrAdd(
+                typeof(TEntity),
+                t => t.GetProperty("CreatedAt")
+            );
+
+            if (createdAtProperty != null)
+            {
+                query = query.OrderByDescending(e => EF.Property<DateTime>(e, "CreatedAt"));
+            }
+            else
+            {
+                var idProperty = _idPropertyCache.GetOrAdd(
+                    typeof(TEntity),
+                    t => t.GetProperties()
+                        .FirstOrDefault(p => p.Name.EndsWith("Id") && p.PropertyType == typeof(int))
+                );
+
+                if (idProperty != null)
+                {
+                    query = query.OrderByDescending(e => EF.Property<int>(e, idProperty.Name));
+                }
+            }
+
+            var items = await query
+                .AsNoTracking()
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return new PaginatedList<TEntity>(items, count, pageNumber, pageSize);
         }
 
         // ─── Sayım ve Kontrol Metodları ───────────────────────────────────────

@@ -12,7 +12,7 @@ namespace Business.Abstract
     public interface IProductService
     {
         Task<IDataResult<List<Product>>> GetAllAsync();
-        Task<IDataResult<List<Product>>> GetPagedAsync(int pageNumber, int pageSize);
+        Task<IDataResult<PaginatedList<Product>>> GetPagedAsync(int pageNumber, int pageSize);
         Task<IDataResult<Product>> GetByIdAsync(int productId);
         Task<IResult> AddAsync(ProductAddDto productAddDto);
         Task<IResult> UpdateAsync(ProductUpdateDto productUpdateDto);

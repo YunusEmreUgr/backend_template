@@ -51,10 +51,10 @@ namespace Business.Concrete
 
         /// <inheritdoc/>
         [CacheAspect(duration: 10)] // Sayfalanmış veri 10 dakika cache'ler
-        public async Task<IDataResult<List<Product>>> GetPagedAsync(int pageNumber, int pageSize)
+        public async Task<IDataResult<PaginatedList<Product>>> GetPagedAsync(int pageNumber, int pageSize)
         {
-            var pagedProducts = await _productDal.GetPagedAsync(null, pageNumber, pageSize);
-            return new SuccessDataResult<List<Product>>(pagedProducts, Messages.ProductsListed);
+            var pagedProducts = await _productDal.GetPaginatedAsync(null, pageNumber, pageSize);
+            return new SuccessDataResult<PaginatedList<Product>>(pagedProducts, Messages.ProductsListed);
         }
 
         /// <inheritdoc/>

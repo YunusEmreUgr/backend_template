@@ -1,5 +1,6 @@
 using Core.Entities.Abstract;
 using System.Linq.Expressions;
+using Core.Utilities.Results;
 
 namespace Core.DataAccess
 {
@@ -53,6 +54,14 @@ namespace Core.DataAccess
         /// Default: CreatedAt alanına göre desc sıralama.
         /// </summary>
         Task<List<T>> GetPagedAsync(Expression<Func<T, bool>>? filter = null,
+            int pageNumber = 1, int pageSize = 10,
+            params Expression<Func<T, object>>[] includes);
+
+        /// <summary>
+        /// Gelişmiş sayfalama ile listeleme.
+        /// Toplam kayıt sayısı gibi meta bilgileri içeren PaginatedList nesnesi döner.
+        /// </summary>
+        Task<PaginatedList<T>> GetPaginatedAsync(Expression<Func<T, bool>>? filter = null,
             int pageNumber = 1, int pageSize = 10,
             params Expression<Func<T, object>>[] includes);
 
