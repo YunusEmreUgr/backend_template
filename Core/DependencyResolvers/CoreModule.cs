@@ -1,5 +1,6 @@
 using Core.CrossCuttingConcerns.Caching;
 using Core.CrossCuttingConcerns.Caching.Microsoft;
+using Core.CrossCuttingConcerns.Caching.Redis;
 using Core.Utilities.Exceptions;
 using Core.Utilities.IoC;
 using Core.Utilities.Security.UserContext;
@@ -17,7 +18,7 @@ namespace Core.DependencyResolvers
     /// Yüklenen servisler:
     ///   - IMemoryCache → Cache altyapısı
     ///   - IHttpContextAccessor → HTTP context'e erişim
-    ///   - ICacheManager (Singleton) → MemoryCacheManager
+    ///   - ICacheManager (Singleton) → MemoryCacheManager veya RedisCacheManager
     ///   - IUserContextService (Scoped) → JWT claim okuma
     /// </summary>
     public class CoreModule : ICoreModule
@@ -31,7 +32,14 @@ namespace Core.DependencyResolvers
             services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 
             // Cache yöneticisi - Singleton (thread-safe, state'ler paylaşılır)
+            // Varsayılan olarak bellek içi önbellekleme (Memory Cache) aktiftir.
             services.AddSingleton<ICacheManager, MemoryCacheManager>();
+
+            // Redis Dağıtık Önbelleğe Geçmek İçin:
+            // 1. WebApi/Program.cs içerisinde Redis servislerini ekleyin:
+            //    builder.Services.AddStackExchangeRedisCache(options => options.Configuration = builder.Configuration.GetConnectionString("Redis"));
+            // 2. Yukarıdaki MemoryCacheManager satırını yorum satırı yapın ve aşağıdaki satırı açın:
+            //    services.AddSingleton<ICacheManager, RedisCacheManager>();
 
             // Kullanıcı context servisi - Scoped (her request yeni instance)
             services.AddScoped<IUserContextService, UserContextService>();

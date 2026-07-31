@@ -2,6 +2,7 @@ using Business.Abstract;
 using Entities.Dtos.Auth;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Asp.Versioning;
 
 namespace WebApi.Controllers
 {
@@ -9,7 +10,8 @@ namespace WebApi.Controllers
     /// Kimlik doğrulama işlemlerini (Giriş, Kayıt, Token Yenileme) yöneten Controller sınıfı.
     /// Güvenlik gereği RefreshToken'ları HTTP-Only Cookie olarak yönetir.
     /// </summary>
-    [Route("api/[controller]")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
     {

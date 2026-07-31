@@ -1,6 +1,7 @@
 using Business.Abstract;
 using Entities.Dtos.Product;
 using Microsoft.AspNetCore.Mvc;
+using Asp.Versioning;
 
 namespace WebApi.Controllers
 {
@@ -8,7 +9,8 @@ namespace WebApi.Controllers
     /// Ürün (Product) işlemlerini yöneten RESTful API Controller sınıfı.
     /// Tüm metodlar Business (Manager) servislerini çağırır ve standard API yanıtı döner.
     /// </summary>
-    [Route("api/[controller]")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/[controller]")]
     [ApiController]
     public class ProductsController : ControllerBase
     {

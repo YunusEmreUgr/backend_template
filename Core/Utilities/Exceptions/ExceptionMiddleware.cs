@@ -5,6 +5,8 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
 using Core.Utilities.Logging;
+using Microsoft.Extensions.Localization;
+using Core.Resources;
 
 namespace Core.Utilities.Exceptions
 {
@@ -31,15 +33,18 @@ namespace Core.Utilities.Exceptions
         private readonly RequestDelegate _next;
         private readonly ILoggerService _loggerService;
         private readonly IHostEnvironment _hostEnvironment;
+        private readonly IStringLocalizer<SharedResource> _localizer;
 
         public ExceptionMiddleware(
             RequestDelegate next,
             ILoggerService loggerService,
-            IHostEnvironment hostEnvironment)
+            IHostEnvironment hostEnvironment,
+            IStringLocalizer<SharedResource> localizer)
         {
             _next = next;
             _loggerService = loggerService;
             _hostEnvironment = hostEnvironment;
+            _localizer = localizer;
         }
 
         public async Task InvokeAsync(HttpContext httpContext)
@@ -61,7 +66,9 @@ namespace Core.Utilities.Exceptions
 
             var statusCode = StatusCodes.Status500InternalServerError;
             var errorCode = ErrorCodes.UnexpectedError;
-            var fallbackMessage = "Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.";
+            var fallbackMessage = _localizer["UnexpectedError"].Value != "UnexpectedError" 
+                ? _localizer["UnexpectedError"].Value 
+                : "Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.";
             IDictionary<string, string[]>? details = null;
 
             // Exception tipine göre HTTP yanıtını belirle
@@ -71,20 +78,23 @@ namespace Core.Utilities.Exceptions
                 case ValidationException validationException:
                     statusCode = StatusCodes.Status400BadRequest;
                     errorCode = ErrorCodes.ValidationError;
-                    fallbackMessage = "Lütfen formdaki hatalı alanları düzeltin.";
-                    // Hataları alan bazında grupla
+                    fallbackMessage = _localizer["ValidationError"].Value != "ValidationError" 
+                        ? _localizer["ValidationError"].Value 
+                        : "Lütfen formdaki hatalı alanları düzeltin.";
+                    
+                    // Hataları alan bazında grupla ve hata mesajlarını yerelleştir
                     details = validationException.Errors
                         .GroupBy(e => e.PropertyName)
                         .ToDictionary(
                             group => group.Key,
-                            group => group.Select(e => e.ErrorMessage).Distinct().ToArray());
+                            group => group.Select(e => _localizer[e.ErrorMessage].Value).Distinct().ToArray());
                     break;
 
                 // Kontrollü iş mantığı hataları
                 case UserFriendlyException userFriendlyException:
                     statusCode = userFriendlyException.StatusCode;
                     errorCode = userFriendlyException.ErrorCode;
-                    fallbackMessage = userFriendlyException.Message;
+                    fallbackMessage = _localizer[userFriendlyException.Message].Value;
                     details = userFriendlyException.Errors;
                     break;
 
@@ -92,14 +102,18 @@ namespace Core.Utilities.Exceptions
                 case UnauthorizedAccessException:
                     statusCode = StatusCodes.Status401Unauthorized;
                     errorCode = ErrorCodes.AuthenticationFailed;
-                    fallbackMessage = "Lütfen oturum açtıktan sonra tekrar deneyin.";
+                    fallbackMessage = _localizer["AuthenticationFailed"].Value != "AuthenticationFailed" 
+                        ? _localizer["AuthenticationFailed"].Value 
+                        : "Lütfen oturum açtıktan sonra tekrar deneyin.";
                     break;
 
                 // Yetkilendirme hatası
                 case SecurityException:
                     statusCode = StatusCodes.Status403Forbidden;
                     errorCode = ErrorCodes.AccessDenied;
-                    fallbackMessage = "Bu işlemi gerçekleştirmek için yetkiniz yok.";
+                    fallbackMessage = _localizer["AccessDenied"].Value != "AccessDenied" 
+                        ? _localizer["AccessDenied"].Value 
+                        : "Bu işlemi gerçekleştirmek için yetkiniz yok.";
                     break;
 
                 // Kaynak bulunamadı
@@ -107,8 +121,8 @@ namespace Core.Utilities.Exceptions
                     statusCode = StatusCodes.Status404NotFound;
                     errorCode = ErrorCodes.ResourceNotFound;
                     fallbackMessage = string.IsNullOrWhiteSpace(keyNotFoundException.Message)
-                        ? "Aradığınız kayıt bulunamadı."
-                        : keyNotFoundException.Message;
+                        ? (_localizer["ResourceNotFound"].Value != "ResourceNotFound" ? _localizer["ResourceNotFound"].Value : "Aradığınız kayıt bulunamadı.")
+                        : _localizer[keyNotFoundException.Message].Value;
                     break;
 
                 // Diğer tüm hatalar → 500 Internal Server Error

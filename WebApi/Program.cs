@@ -85,6 +85,9 @@ public class Program
             services.AddScoped<IEmailService, SmtpEmailService>();
             services.AddSingleton<ILoggerService, SerilogLoggerService>();
 
+            // Redis Dağıtık Önbellekleme (İsteğe bağlı - Aktif etmek için aşağıdaki satırı yorumdan çıkarın)
+            // services.AddStackExchangeRedisCache(options => options.Configuration = configuration.GetConnectionString("Redis"));
+
             // 7. Controller ve JSON Serileştirme Ayarları
             services.AddControllers(options =>
             {
@@ -154,6 +157,18 @@ public class Program
             services.AddHealthChecks()
                 .AddCheck<DbContextHealthCheck>("Database");
 
+            // 10.6. API Versiyonlama (API Versioning)
+            services.AddApiVersioning(options =>
+            {
+                options.DefaultApiVersion = new Asp.Versioning.ApiVersion(1, 0);
+                options.AssumeDefaultVersionWhenUnspecified = true;
+                options.ReportApiVersions = true; // İstemciye desteklenen versiyonları header'da döner
+            }).AddApiExplorer(options =>
+            {
+                options.GroupNameFormat = "'v'VVV"; // Swagger için grup adı formatı (örn: v1)
+                options.SubstituteApiVersionInUrl = true;
+            });
+
             // 11. Swagger ve API Dökümantasyonu
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(c =>
@@ -179,6 +194,16 @@ public class Program
                 });
             });
 
+            // 11.5. Çoklu Dil Desteği (Localization)
+            services.AddLocalization(options => options.ResourcesPath = "Resources");
+            services.Configure<RequestLocalizationOptions>(options =>
+            {
+                var supportedCultures = new[] { "tr-TR", "en-US" };
+                options.SetDefaultCulture(supportedCultures[0])
+                    .AddSupportedCultures(supportedCultures)
+                    .AddSupportedUICultures(supportedCultures);
+            });
+
             // 12. Core Katmanı Bağımlılık Modüllerini Yükle
             services.AddDependencyResolvers(new ICoreModule[] { new CoreModule() });
 
@@ -196,6 +221,9 @@ public class Program
             
             // Serilog Request Logging (İstek logları)
             app.UseSerilogRequestLogging();
+
+            // Çoklu Dil (Localization) Middleware Aktifleştirme
+            app.UseRequestLocalization();
 
             if (app.Environment.IsDevelopment())
             {
