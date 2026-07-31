@@ -24,6 +24,10 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using WebApi.Filters;
 using WebApi.Middleware;
+using DataAccess.Concrete.EntityFramework.Interceptors;
+using WebApi.Health;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using System.Text.Json;
 
 internal class Program
 {
@@ -62,9 +66,12 @@ internal class Program
             var configuration = builder.Configuration;
 
             // 4. Veritabanı Yapılandırması (EF Core PostgreSQL)
-            services.AddDbContext<AppDbContext>(options =>
+            services.AddScoped<AuditInterceptor>();
+            services.AddDbContext<AppDbContext>((sp, options) =>
             {
                 options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+                // Audit Interceptor otomatik tarih takibi için eklenir
+                options.AddInterceptors(sp.GetRequiredService<AuditInterceptor>());
                 // Performans Optimizasyonu: Okuma işlemlerinde tracking kapalı
                 options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
             });
@@ -143,6 +150,10 @@ internal class Program
                 options.RejectionStatusCode = 429;
             });
 
+            // 10.5. Health Checks (Sistem Sağlık Kontrolleri)
+            services.AddHealthChecks()
+                .AddCheck<DbContextHealthCheck>("Database");
+
             // 11. Swagger ve API Dökümantasyonu
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(c =>
@@ -195,6 +206,28 @@ internal class Program
             app.UseHttpsRedirection();
             app.UseStaticFiles();
             app.UseRouting();
+
+            // Health check endpoint'ini özel JSON formatı ile eşle
+            app.MapHealthChecks("/api/health", new HealthCheckOptions
+            {
+                ResponseWriter = async (context, report) =>
+                {
+                    context.Response.ContentType = "application/json";
+                    var response = new
+                    {
+                        status = report.Status.ToString(),
+                        checks = report.Entries.Select(entry => new
+                        {
+                            name = entry.Key,
+                            status = entry.Value.Status.ToString(),
+                            description = entry.Value.Description,
+                            duration = entry.Value.Duration.ToString()
+                        }),
+                        totalDuration = report.TotalDuration.ToString()
+                    };
+                    await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+                }
+            });
 
             app.UseCors("AllowSpecificOrigins");
             app.UseRateLimiter();

@@ -16,7 +16,7 @@ namespace Entities.Concrete
     ///   - IsDeleted = true → Silinmiş sayılır (HasQueryFilter otomatik filtreler)
     ///   - EfEntityRepositoryBase.DeleteAsync() IsDeleted'i otomatik set eder
     /// </summary>
-    public class Product : IEntity
+    public class Product : IAuditableEntity
     {
         public int ProductId { get; set; }
 

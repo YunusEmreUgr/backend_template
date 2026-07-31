@@ -14,7 +14,7 @@ namespace Core.Entities.Concrete.Users
     /// - Soft delete için IsDeleted + global query filter
     /// - Timestamp'ler için CreatedAt / UpdatedAt / LastLoginAt
     /// </summary>
-    public class User : IEntity
+    public class User : IAuditableEntity
     {
         /// <summary>Birincil anahtar (PK)</summary>
         public int UserId { get; set; }

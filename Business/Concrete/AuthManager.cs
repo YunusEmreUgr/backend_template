@@ -7,6 +7,8 @@ using Core.Utilities.Security.Hashing;
 using Core.Utilities.Security.JWT;
 using Entities.Dtos.Auth;
 using Microsoft.AspNetCore.Http;
+using Core.Aspects.Autofac.Validation;
+using Business.ValidationRules.FluentValidation;
 using static Core.Utilities.Security.JWT.JwtHelper;
 using IResult = Core.Utilities.Results.IResult;
 
@@ -30,6 +32,7 @@ namespace Business.Concrete
         }
 
         /// <inheritdoc/>
+        [ValidationAspect(typeof(RegisterValidator))]
         public async Task<IDataResult<User>> Register(UserForRegisterDto userForRegisterDto, string password)
         {
             // Şifreyi HMACSHA512 kullanarak hash'le ve salt değerini oluştur
@@ -55,6 +58,7 @@ namespace Business.Concrete
         }
 
         /// <inheritdoc/>
+        [ValidationAspect(typeof(LoginValidator))]
         public async Task<IDataResult<User>> Login(UserForLoginDto userForLoginDto)
         {
             // E-posta adresine göre kullanıcıyı ara

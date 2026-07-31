@@ -50,40 +50,5 @@ namespace DataAccess.Concrete.EntityFramework
                 .HasPrecision(18, 2);
         }
 
-        /// <summary>
-        /// SaveChanges öncesinde CreatedAt ve UpdatedAt alanlarını otomatik doldurur.
-        /// Bu sayede yazılım katmanında her ekleme/güncelleme işleminde bu alanları elle set etmeye gerek kalmaz.
-        /// </summary>
-        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            var entries = ChangeTracker.Entries()
-                .Where(e => e.Entity is IEntity && (
-                    e.State == EntityState.Added ||
-                    e.State == EntityState.Modified));
-
-            foreach (var entry in entries)
-            {
-                if (entry.State == EntityState.Added)
-                {
-                    // CreatedAt alanını UTC şimdi olarak set et
-                    var createdAtProp = entry.Entity.GetType().GetProperty("CreatedAt");
-                    if (createdAtProp != null)
-                    {
-                        createdAtProp.SetValue(entry.Entity, DateTime.UtcNow);
-                    }
-                }
-                else if (entry.State == EntityState.Modified)
-                {
-                    // UpdatedAt alanını UTC şimdi olarak set et
-                    var updatedAtProp = entry.Entity.GetType().GetProperty("UpdatedAt");
-                    if (updatedAtProp != null)
-                    {
-                        updatedAtProp.SetValue(entry.Entity, DateTime.UtcNow);
-                    }
-                }
-            }
-
-            return base.SaveChangesAsync(cancellationToken);
-        }
     }
 }
