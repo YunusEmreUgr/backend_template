@@ -1,0 +1,225 @@
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
+using AutoMapper;
+using Business.DependencyResolvers.Autofac;
+using Business.Mappings;
+using Core.DependencyResolvers;
+using Core.Extensions;
+using Core.Utilities.Email;
+using Core.Utilities.Exceptions;
+using Core.Utilities.IoC;
+using Core.Utilities.Logging;
+using Core.Utilities.Security.Encryption;
+using Core.Utilities.Security.JWT;
+using DataAccess.Concrete.EntityFramework;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using Serilog;
+using System.Diagnostics;
+using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
+using WebApi.Filters;
+using WebApi.Middleware;
+
+internal class Program
+{
+    private static void Main(string[] args)
+    {
+        var watch = Stopwatch.StartNew();
+
+        // 1. Serilog Logger Başlangıç Ayarı
+        Log.Logger = new LoggerConfiguration()
+            .WriteTo.Console()
+            .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day)
+            .CreateLogger();
+
+        try
+        {
+            var builder = WebApplication.CreateBuilder(args);
+
+            // 2. Serilog Entegrasyonu
+            builder.Host.UseSerilog((context, services, configuration) => configuration
+                .ReadFrom.Configuration(context.Configuration)
+                .ReadFrom.Services(services)
+                .Enrich.FromLogContext()
+                .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+                .MinimumLevel.Override("System", Serilog.Events.LogEventLevel.Warning)
+                .WriteTo.Console()
+                .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day));
+
+            // 3. Autofac Entegrasyonu
+            builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
+            builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
+            {
+                containerBuilder.RegisterModule(new AutofacBusinessModule());
+            });
+
+            var services = builder.Services;
+            var configuration = builder.Configuration;
+
+            // 4. Veritabanı Yapılandırması (EF Core PostgreSQL)
+            services.AddDbContext<AppDbContext>(options =>
+            {
+                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+                // Performans Optimizasyonu: Okuma işlemlerinde tracking kapalı
+                options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+            });
+
+            // 5. Temel Servislerin Eklenmesi
+            services.AddAutoMapper(typeof(AutoMapperProfile));
+            services.AddHttpClient();
+            services.AddHttpContextAccessor();
+
+            // 6. Özel Altyapı Servisleri
+            services.AddScoped<IEmailService, SmtpEmailService>();
+            services.AddSingleton<ILoggerService, SerilogLoggerService>();
+
+            // 7. Controller ve JSON Serileştirme Ayarları
+            services.AddControllers(options =>
+            {
+                // Standart hata yapılandırması için Result Filtresi eklenir
+                options.Filters.Add<UserFriendlyResultFilter>();
+            })
+            .AddJsonOptions(options =>
+            {
+                // Döngüsel referans hatasını önlemek için
+                options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+            });
+
+            // 8. CORS Yapılandırması
+            var corsOrigins = configuration["CorsOrigins"]?.Split(',') 
+                              ?? new[] { "http://localhost:3000", "http://localhost:4200" };
+            services.AddCors(options =>
+            {
+                options.AddPolicy("AllowSpecificOrigins", policy =>
+                {
+                    policy.WithOrigins(corsOrigins)
+                          .AllowAnyHeader()
+                          .AllowAnyMethod()
+                          .AllowCredentials();
+                });
+            });
+
+            // 9. JWT Kimlik Doğrulama (Authentication)
+            var tokenOptions = configuration.GetSection("TokenOptions").Get<TokenOptions>()
+                               ?? throw new InvalidOperationException("TokenOptions ayarları bulunamadı.");
+
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidateAudience = true,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
+                        ValidIssuer = tokenOptions.Issuer,
+                        ValidAudience = tokenOptions.Audience,
+                        IssuerSigningKey = SecurityKeyHelper.CreateSecurityKey(tokenOptions.SecurityKey),
+                        ClockSkew = TimeSpan.Zero
+                    };
+                });
+
+            // 10. Rate Limiting Yapılandırması (DDoS & Brute Force Koruması)
+            services.AddRateLimiter(options =>
+            {
+                options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: partition => new FixedWindowRateLimiterOptions
+                        {
+                            AutoReplenishment = true,
+                            PermitLimit = 100, // 1 dakikada max 100 istek
+                            Window = TimeSpan.FromMinutes(1)
+                        }));
+
+                // Hassas endpoint'ler için özel limitler
+                options.AddFixedWindowLimiter("login", opt => { opt.PermitLimit = 10; opt.Window = TimeSpan.FromMinutes(15); });
+                options.AddFixedWindowLimiter("register", opt => { opt.PermitLimit = 5; opt.Window = TimeSpan.FromHours(1); });
+                options.RejectionStatusCode = 429;
+            });
+
+            // 11. Swagger ve API Dökümantasyonu
+            services.AddEndpointsApiExplorer();
+            services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new OpenApiInfo { Title = "Clean Architecture API Template", Version = "v1" });
+                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Description = "JWT Authorization header. Örnek: \"Bearer {token}\"",
+                    Name = "Authorization",
+                    In = ParameterLocation.Header,
+                    Type = SecuritySchemeType.ApiKey,
+                    Scheme = "Bearer"
+                });
+                c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+                        },
+                        Array.Empty<string>()
+                    }
+                });
+            });
+
+            // 12. Core Katmanı Bağımlılık Modüllerini Yükle
+            services.AddDependencyResolvers(new ICoreModule[] { new CoreModule() });
+
+            // ─── UYGULAMA İNŞASI (BUILD) ───
+            var app = builder.Build();
+
+            // ⚡ ÖNEMLİ: Static Service Locator (ServiceTool) Başlatılması.
+            // Bu satır olmadan constructor injection alamayan Aspect sınıfları (AOP) çalışmaz.
+            ServiceTool.Create(app.Services);
+
+            // ─── HTTP PIPELINE YAPILANDIRMASI (MIDDLEWARE) ───
+
+            // Global Exception Yakalama (En başta olmalı)
+            app.UseMiddleware<ExceptionMiddleware>();
+            
+            // Serilog Request Logging (İstek logları)
+            app.UseSerilogRequestLogging();
+
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Clean Architecture API Template V1"));
+            }
+
+            app.UseHttpsRedirection();
+            app.UseStaticFiles();
+            app.UseRouting();
+
+            app.UseCors("AllowSpecificOrigins");
+            app.UseRateLimiter();
+
+            app.UseAuthentication();
+            
+            // Kullanıcı Ban/Askı Kontrol Middleware (Cache tabanlı)
+            app.UseMiddleware<UserStatusMiddleware>();
+
+            app.UseAuthorization();
+
+            app.MapControllers();
+
+            watch.Stop();
+            Log.Information("🚀 Uygulama {ElapsedMilliseconds} ms içinde başarıyla başlatıldı.", watch.ElapsedMilliseconds);
+
+            app.Run();
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "💀 Uygulama beklenmeyen bir şekilde sonlandırıldı.");
+        }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
+    }
+}
