@@ -29,7 +29,7 @@ using WebApi.Health;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using System.Text.Json;
 
-internal class Program
+public class Program
 {
     private static void Main(string[] args)
     {
