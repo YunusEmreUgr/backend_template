@@ -151,5 +151,20 @@ namespace Core.Utilities.Security.JWT
             using var sha = SHA256.Create();
             return Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(token)));
         }
+
+        /// <inheritdoc/>
+        public ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
+        {
+            try
+            {
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var jwtToken = tokenHandler.ReadJwtToken(token);
+                return new ClaimsPrincipal(new ClaimsIdentity(jwtToken.Claims));
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 }

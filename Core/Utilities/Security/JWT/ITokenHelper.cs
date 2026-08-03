@@ -1,4 +1,5 @@
 using Core.Entities.Concrete.Users;
+using System.Security.Claims;
 
 namespace Core.Utilities.Security.JWT
 {
@@ -25,5 +26,10 @@ namespace Core.Utilities.Security.JWT
         /// RefreshToken veritabanına kaydedilir.
         /// </summary>
         Task<JwtHelper.TokenDto> CreateTokensAsync(User user, List<OperationClaim> operationClaims, string ipAddress);
+
+        /// <summary>
+        /// Süresi dolmuş token'dan kullanıcının ClaimsPrincipal bilgisini ayıklar.
+        /// </summary>
+        ClaimsPrincipal? GetPrincipalFromExpiredToken(string token);
     }
 }

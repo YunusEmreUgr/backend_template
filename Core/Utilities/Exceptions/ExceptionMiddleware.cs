@@ -94,7 +94,10 @@ namespace Core.Utilities.Exceptions
                 case UserFriendlyException userFriendlyException:
                     statusCode = userFriendlyException.StatusCode;
                     errorCode = userFriendlyException.ErrorCode;
-                    fallbackMessage = _localizer[userFriendlyException.Message].Value;
+                    var localizedMsg = _localizer[userFriendlyException.Message].Value;
+                    fallbackMessage = (!string.IsNullOrWhiteSpace(localizedMsg) && localizedMsg != userFriendlyException.Message)
+                        ? localizedMsg
+                        : userFriendlyException.Message;
                     details = userFriendlyException.Errors;
                     break;
 

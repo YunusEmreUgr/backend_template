@@ -69,7 +69,15 @@ public class Program
             services.AddScoped<AuditInterceptor>();
             services.AddDbContext<AppDbContext>((sp, options) =>
             {
-                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+                var connStr = configuration.GetConnectionString("DefaultConnection");
+                if (connStr != null && connStr.Contains(".db", StringComparison.OrdinalIgnoreCase))
+                {
+                    options.UseSqlite(connStr);
+                }
+                else
+                {
+                    options.UseNpgsql(connStr);
+                }
                 // Audit Interceptor otomatik tarih takibi için eklenir
                 options.AddInterceptors(sp.GetRequiredService<AuditInterceptor>());
                 // Performans Optimizasyonu: Okuma işlemlerinde tracking kapalı
@@ -233,7 +241,10 @@ public class Program
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Clean Architecture API Template V1"));
             }
 
-            app.UseHttpsRedirection();
+            if (!app.Environment.IsDevelopment())
+            {
+                app.UseHttpsRedirection();
+            }
             app.UseStaticFiles();
             app.UseRouting();
 
@@ -278,6 +289,7 @@ public class Program
                 try
                 {
                     var dbContext = servicesProvider.GetRequiredService<AppDbContext>();
+                    await dbContext.Database.EnsureCreatedAsync();
                     await DataAccess.Concrete.EntityFramework.Seed.DbSeeder.SeedAsync(dbContext);
                 }
                 catch (Exception ex)

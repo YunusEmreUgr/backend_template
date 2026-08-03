@@ -23,6 +23,7 @@ namespace Tests.Unit.Business
         private readonly Mock<IUserService> _userServiceMock;
         private readonly Mock<ITokenHelper> _tokenHelperMock;
         private readonly Mock<IUserOperationClaimService> _userOperationClaimServiceMock;
+        private readonly Mock<Core.DataAccess.IRefreshTokenRepository> _refreshTokenRepositoryMock;
         private readonly AuthManager _authManager;
 
         public AuthManagerTests()
@@ -31,12 +32,14 @@ namespace Tests.Unit.Business
             _userServiceMock = new Mock<IUserService>();
             _tokenHelperMock = new Mock<ITokenHelper>();
             _userOperationClaimServiceMock = new Mock<IUserOperationClaimService>();
+            _refreshTokenRepositoryMock = new Mock<Core.DataAccess.IRefreshTokenRepository>();
 
             // 2. Test edilecek asıl sınıfın taklit nesnelerle oluşturulması (SUT - System Under Test)
             _authManager = new AuthManager(
                 _userServiceMock.Object, 
                 _tokenHelperMock.Object, 
-                _userOperationClaimServiceMock.Object);
+                _userOperationClaimServiceMock.Object,
+                _refreshTokenRepositoryMock.Object);
         }
 
         [Fact]

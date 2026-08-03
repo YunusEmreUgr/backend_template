@@ -29,5 +29,11 @@ namespace Business.Abstract
 
         /// <summary>Kullanıcının sahip olduğu rolleri döner.</summary>
         Task<IDataResult<List<OperationClaim>>> GetClaimsAsync(User user);
+
+        /// <summary>ID değerine göre kullanıcıyı getirir.</summary>
+        Task<User?> GetUserByIdAsync(int userId);
+
+        /// <summary>Refresh token kullanarak yeni Access & Refresh token üretir.</summary>
+        Task<IDataResult<TokenDto>> RefreshTokenAsync(string refreshToken, string ipAddress);
     }
 }

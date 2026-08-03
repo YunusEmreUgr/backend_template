@@ -1,7 +1,9 @@
 using Business.Abstract;
 using Entities.Dtos.Auth;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using Asp.Versioning;
 
 namespace WebApi.Controllers
@@ -58,7 +60,13 @@ namespace WebApi.Controllers
             {
                 success = true,
                 message = registerResult.Message,
-                data = tokenResult.AccessToken
+                data = new
+                {
+                    token = tokenResult.AccessToken.Token,
+                    expiration = tokenResult.AccessToken.Expiration,
+                    refreshToken = tokenResult.RefreshToken,
+                    refreshTokenExpiration = tokenResult.RefreshTokenExpiration
+                }
             });
         }
 
@@ -83,7 +91,13 @@ namespace WebApi.Controllers
             {
                 success = true,
                 message = loginResult.Message,
-                data = tokenResult.AccessToken
+                data = new
+                {
+                    token = tokenResult.AccessToken.Token,
+                    expiration = tokenResult.AccessToken.Expiration,
+                    refreshToken = tokenResult.RefreshToken,
+                    refreshTokenExpiration = tokenResult.RefreshTokenExpiration
+                }
             });
         }
 
@@ -146,6 +160,57 @@ namespace WebApi.Controllers
                 success = true,
                 message = loginResult.Message,
                 data = tokenResult.AccessToken
+            });
+        }
+
+        /// <summary>Giriş yapmış kullanıcının yetki/rol listesini döner.</summary>
+        [HttpGet("claims")]
+        [Authorize]
+        public async Task<IActionResult> GetUserClaims()
+        {
+            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value
+                ?? User.Claims.FirstOrDefault(c => c.Type == "userid")?.Value;
+
+            if (int.TryParse(userIdClaim, out var userId))
+            {
+                var user = await _authService.GetUserByIdAsync(userId);
+                if (user != null)
+                {
+                    var claimsResult = await _authService.GetClaimsAsync(user);
+                    if (claimsResult.Success)
+                    {
+                        var claimNames = claimsResult.Data.Select(c => c.OperationClaimName).ToList();
+                        return Ok(new { success = true, data = claimNames });
+                    }
+                }
+            }
+
+            return Ok(new { success = true, data = new List<string>() });
+        }
+
+        /// <summary>Refresh token kullanarak yeni erişim token'ı alır.</summary>
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh([FromBody] RefreshTokenDto? dto)
+        {
+            var refreshToken = dto?.RefreshToken ?? Request.Cookies["refreshToken"];
+            if (string.IsNullOrWhiteSpace(refreshToken))
+            {
+                return BadRequest(new { success = false, message = "Refresh token gereklidir." });
+            }
+
+            var ipAddress = GetIpAddress();
+            var refreshResult = await _authService.RefreshTokenAsync(refreshToken, ipAddress);
+            if (!refreshResult.Success)
+            {
+                return StatusCode(refreshResult.StatusCode, refreshResult);
+            }
+
+            SetRefreshTokenCookie(refreshResult.Data.RefreshToken, refreshResult.Data.RefreshTokenExpiration);
+            return Ok(new
+            {
+                success = true,
+                message = refreshResult.Message,
+                data = refreshResult.Data
             });
         }
 
