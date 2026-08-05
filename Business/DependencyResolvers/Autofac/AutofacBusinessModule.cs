@@ -28,6 +28,8 @@ namespace Business.DependencyResolvers.Autofac
             builder.RegisterType<EfOperationClaimDal>().As<IOperationClaimDal>().InstancePerLifetimeScope();
             builder.RegisterType<EfUserOperationClaimDal>().As<IUserOperationClaimDal>().InstancePerLifetimeScope();
             builder.RegisterType<RefreshTokenRepository>().As<IRefreshTokenRepository>().InstancePerLifetimeScope();
+            builder.RegisterType<EfUserSubscriptionDal>().As<IUserSubscriptionDal>().InstancePerLifetimeScope();
+            builder.RegisterType<EfAppStoreTransactionDal>().As<IAppStoreTransactionDal>().InstancePerLifetimeScope();
 
             // ─── İş Kuralları (Business Rules) Kayıtları ─────────────────────────
             builder.RegisterType<ProductBusinessRules>().InstancePerLifetimeScope();

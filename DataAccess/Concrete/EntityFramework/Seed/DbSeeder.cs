@@ -30,7 +30,7 @@ namespace DataAccess.Concrete.EntityFramework.Seed
             }
 
             // 2. Varsayılan Yetkileri (Operation Claims) Seed Et
-            var defaultClaims = new[] { "Admin", "Moderator", "User" };
+            var defaultClaims = new[] { "Admin", "Moderator", "User", "Premium" };
             foreach (var claimName in defaultClaims)
             {
                 if (!await context.OperationClaims.AnyAsync(oc => oc.OperationClaimName == claimName))

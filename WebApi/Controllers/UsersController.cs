@@ -93,6 +93,25 @@ namespace WebApi.Controllers
             return Ok(new { success = true, message = "Şifreniz başarıyla değiştirildi." });
         }
 
+        /// <summary>Giriş yapmış kullanıcının hesabını siler (Soft Delete).</summary>
+        [HttpDelete("account")]
+        public async Task<IActionResult> DeleteAccount()
+        {
+            var userId = GetCurrentUserId();
+            var user = await _userService.GetById(userId);
+            if (user == null)
+            {
+                return NotFound(new { success = false, message = "Kullanıcı bulunamadı." });
+            }
+
+            user.IsDeleted = true;
+            user.Status = false;
+
+            await _userService.Update(user);
+
+            return Ok(new { success = true, message = "Hesabınız başarıyla silindi." });
+        }
+
         private int GetCurrentUserId()
         {
             var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value

@@ -21,6 +21,8 @@ namespace DataAccess.Concrete.EntityFramework
         public DbSet<OperationClaim> OperationClaims { get; set; }
         public DbSet<UserOperationClaim> UserOperationClaims { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<UserSubscription> UserSubscriptions { get; set; }
+        public DbSet<AppStoreTransaction> AppStoreTransactions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -37,12 +39,17 @@ namespace DataAccess.Concrete.EntityFramework
             // IsDeleted alanı true olan kayıtlar EF Core select sorgularına otomatik olarak dahil edilmez.
             modelBuilder.Entity<Product>().HasQueryFilter(p => !p.IsDeleted);
             modelBuilder.Entity<User>().HasQueryFilter(u => !u.IsDeleted);
+            modelBuilder.Entity<UserSubscription>().HasQueryFilter(us => !us.IsDeleted);
+            modelBuilder.Entity<AppStoreTransaction>().HasQueryFilter(t => !t.IsDeleted);
 
             // 3. İndeks Tanımlamaları (Performans için)
             modelBuilder.Entity<Product>().HasIndex(p => p.CreatedAt);
             modelBuilder.Entity<Product>().HasIndex(p => p.CategoryId);
             modelBuilder.Entity<User>().HasIndex(u => u.GoogleId);
             modelBuilder.Entity<User>().HasIndex(u => u.AppleId);
+            modelBuilder.Entity<UserSubscription>().HasIndex(us => us.UserId);
+            modelBuilder.Entity<UserSubscription>().HasIndex(us => us.OriginalTransactionId);
+            modelBuilder.Entity<AppStoreTransaction>().HasIndex(t => t.TransactionId);
 
             // 4. Veri Tipi Hassasiyetleri (Decimal Precision)
             modelBuilder.Entity<Product>()

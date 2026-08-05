@@ -54,6 +54,11 @@ namespace WebApi.Middleware
                             // 5 dakika boyunca ban kontrolü için veritabanına gitme
                             _cache.Set(cacheKey, userStatus, TimeSpan.FromMinutes(5));
                         }
+                        else
+                        {
+                            userStatus = false; // Kullanıcı bulunamadı veya silindi -> Erişimi engelle
+                            _cache.Set(cacheKey, userStatus, TimeSpan.FromMinutes(1));
+                        }
                     }
 
                     // Kullanıcı askıya alınmışsa (Status = false) isteği sonlandır
